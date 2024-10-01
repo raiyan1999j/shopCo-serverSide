@@ -52,9 +52,19 @@ async function run() {
 
       if(!query){
         await allProducts.insertOne(wrap);
+
+        res.send().status(200);
       }else{
         await allProducts.updateOne({_id:new ObjectId(`${query._id}`)},{$push:{[title]:{[subTitle]:container}}});
+
+        res.send().status(200);
       }
+    })
+    // retrieve all products info
+    app.get('/allProductsInfo', async (req,res)=>{
+      const result = await allProducts.find().toArray();
+
+      res.send(result);
     })
   } finally {
     // Ensures that the client will close when you finish/error
