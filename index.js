@@ -44,20 +44,22 @@ async function run() {
     })
     // add new products
     app.post('/addNewProduct', async(req,res)=>{
+      const {title} = req.query;
       const container = req.body;
-      const {title,subTitle} = req.query;
-      const exist = {[title]:{$exists:true}}
-      const query = await allProducts.findOne(exist);
-      const wrap = {[title]:[{[subTitle]:container}]};
+      const docs = {[title]:[container]};
+      const checkExisting = await allProducts.findOne({[title]:{$exists:true,$ne:null}},{projection:{[title]:0}})
+      // const result = await allProducts.insertOne(docs);
 
-      if(!query){
-        await allProducts.insertOne(wrap);
+      if(checkExisting){
+        const trackId = checkExisting;
+        
+        await allProducts.updateOne({_id:trackId["_id"]},{$push:{[title]:container}})
 
-        res.send().status(200);
+        res.send().status(200)
       }else{
-        await allProducts.updateOne({_id:new ObjectId(`${query._id}`)},{$push:{[title]:{[subTitle]:container}}});
+        await allProducts.insertOne(docs);
 
-        res.send().status(200);
+        res.send().status(200)
       }
     })
     // retrieve all products info
@@ -66,6 +68,46 @@ async function run() {
 
       res.send(result);
     })
+    // retrieve specific product info for editForm
+    app.get('/specificProduct',async (req,res)=>{
+      const {trackId,title,sku} = req.query;
+      const result = await allProducts.aggregate([
+        {$match:{_id:new ObjectId(`${trackId}`)}},
+        {$project:{
+          [title]:{
+            $filter:{
+              input:`$${title}`,
+              as: "item",
+              cond:{$eq:["$$item.sku",sku]}
+            }
+          }
+        }}
+      ]).toArray()
+
+      res.send(result[0][title])
+    })
+    // update a products info
+    app.put('/updateProductsInfo', async (req,res)=>{
+      const {title,sku,trackId} = req.query;
+      const container = req.body;
+      const filter = {_id:new ObjectId(`${trackId}`)};
+      const updateDoc = [
+        {$set:{
+          [title]:{
+            $map:{
+              input:`$${title}`,
+              as:"items",
+              in:{$cond:[{$eq:["$$items.sku",sku]},container,"$$items"]}
+            }
+          }
+        }}
+      ]
+      const result = await allProducts.updateOne(filter,updateDoc);
+
+      res.send().status(200);
+    })
+    // remove a items
+    
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
