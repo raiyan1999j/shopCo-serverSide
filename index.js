@@ -107,7 +107,16 @@ async function run() {
       res.send().status(200);
     })
     // remove a items
-    
+    app.put("/removeProductsInfo", async (req,res)=>{
+      const {title,trackId,sku} = req.query;
+      const filter = {_id:new ObjectId(`${trackId}`)};
+      const updateDoc = {$pull:{[title]:{"sku":`${sku}`}}};
+      const result = await allProducts.updateOne(filter,updateDoc);
+
+      if(result.acknowledged && result.modifiedCount === 1){
+        res.send().status(200);
+      }
+    })
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
