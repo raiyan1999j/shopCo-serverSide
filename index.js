@@ -117,6 +117,85 @@ async function run() {
         res.send().status(200);
       }
     })
+    // get products base on recent added new-arrivals
+    app.get('/newArrivalsProduct',async (req,res)=>{
+      const step1 = await allProducts.aggregate([
+        {
+          $project:{
+            _id:0,
+            container:{
+              $map:{
+                input:{$objectToArray:'$$ROOT'},
+                as:"items",
+                in:"$$items"
+              }
+            }
+          } 
+        },
+        {
+          $project:{
+            collectArray:{
+                $arrayElemAt:["$container",1]
+              }
+            }
+        },
+        {
+          $project:{
+            collectArray:{
+              $map:{
+              input:"$collectArray.v",
+              as:"subItems",
+              in: "$$subItems"
+            }
+            }
+          }
+        },
+        {
+          $unwind:"$collectArray"
+        },
+        {
+          $replaceRoot:{newRoot:"$collectArray"}
+        },
+        {
+          $group:{
+            _id:null,
+            step1:{$push:"$$ROOT"}
+          }
+        },
+        {
+          $project:{
+            _id:0,
+            sortedDocs:{
+              $sortArray:{
+                input:"$step1",
+                sortBy: {time:1}
+              }
+            }
+          }
+        },
+        {
+          $unwind:"$sortedDocs"
+        },
+        {
+          $limit:4
+        },
+        {
+          $group:{
+            _id:null,
+            finalResult:{$push:"$sortedDocs"}
+          }
+        },
+        {
+          $project:{
+            _id:0,
+            finalResult:1
+          }
+        }
+      ]).toArray();
+
+      // step1[0].container[1]
+      res.send(step1)
+    })
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
