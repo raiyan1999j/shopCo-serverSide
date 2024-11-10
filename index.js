@@ -192,9 +192,54 @@ async function run() {
           }
         }
       ]).toArray();
-
-      // step1[0].container[1]
       res.send(step1)
+    })
+    // filter data base on color,size,tag,category others
+    app.get('/productFilter',async (req,res)=>{
+      const result = await allProducts.aggregate([
+        {
+          $unset:"_id"
+        },
+        {
+          $project:{
+            step1:{
+              $objectToArray:"$$ROOT"
+            }
+          }
+        },
+        {$unwind:"$step1"},
+        {$unwind:"$step1.v"},
+        {$unwind:"$step1.v.color"},
+        {$unwind:"$step1.v.checked"},
+        {$unwind:"$step1.v.category"},
+        {$unwind:"$step1.k"},
+        {$unwind:"$step1.v.regularPrice"},
+        {
+          $group:{
+            _id:0,
+            color:{$addToSet:"$step1.v.color"},
+            size:{$addToSet:"$step1.v.checked"},
+            dressStyle:{$addToSet:"$step1.v.category"},
+            dressFormate:{$addToSet:"$step1.k"},
+            price:{$addToSet:"$step1.v.regularPrice"}
+          }
+        },
+        {
+          $project:{
+            color:1,
+            size:1,
+            size:1,
+            dressStyle:1,
+            dressFormate:1,
+            priceRange:[
+              {minPrice:{$min:"$price"}},
+              {maxPrice:{$max:"$price"}}
+            ]
+          }
+        }
+      ]).toArray()
+
+      res.send(result);
     })
   } finally {
     // Ensures that the client will close when you finish/error
